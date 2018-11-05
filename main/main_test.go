@@ -1,7 +1,10 @@
 package main
 
-import "zhihuimage/service"
+import (
+	"zhihuimage/service"
+	"testing"
+)
 
-func main() {
+func TestAnswerCount(t *testing.T) {
 	service.GetWonderfulImages(293477173, "")
 }

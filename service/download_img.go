@@ -1,33 +1,90 @@
 package service
 
 import (
-	"regexp"
-	"net/http"
-	"zhihuimage/entity"
+	"fmt"
+	"strings"
 	"os"
-	"io"
+	"strconv"
+	"net/http"
+	"github.com/PuerkitoBio/goquery"
+	"zhihuimage/entity"
 	"io/ioutil"
 	"encoding/json"
-	"fmt"
-	"github.com/PuerkitoBio/goquery"
-	"strings"
-	"strconv"
+	"io"
+	"regexp"
 )
 
 const Url = "https://www.zhihu.com/api/v4/questions/{QUESTION_ID}/answers?include=content&limit={LIMIT}&offset={OFFSET}&sort_by=default"
 const ZhihuUrl = "https://www.zhihu.com/question/{QUESTION_ID}"
-const Size = 20
+const SizeMax = 5
 
-func GetWonderfulImages(questionId int, rootDir string) {
+func GetWonderfulImages(questionId int64, rootDir string, size int, answerLimit int) {
+
+	rootDir = dirCheck(rootDir)
+	size = sizeCheck(size)
+
 	totalCount := getAnswerCount(questionId)
-	fmt.Println("the question has total:", totalCount, "answers")
-	for ; ;  {
+	if totalCount == 0 {
+		fmt.Println("Exit.")
+		return
+	}
+	for i := 0; i < totalCount; i += size {
+		// 分页参数
+		offset := i
+		limit := size
+		// 获取api
+		api := getApi(questionId, limit, offset)
+		fmt.Println("Api:", api)
+		// 拿这个api去下载咯
+		downloadImageByApi(api, rootDir)
 
+		fmt.Println("----------------------------------------------------------------------")
+
+		if offset >= answerLimit {
+			break
+		}
 	}
 }
 
-func getAnswerCount(questionId int) int {
-	response, err := http.Get(strings.Replace(ZhihuUrl, "{QUESTION_ID}", strconv.Itoa(questionId), -1))
+// 每页最多几条回答
+func sizeCheck(size int) int {
+	if size > SizeMax || size <= 0{
+		return SizeMax
+	}
+	return size
+}
+// 检验文件夹路径 & 创建目录
+func dirCheck(path string) string {
+	if !strings.HasSuffix(path, "/") {
+		path += "/"
+	}
+
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			fmt.Println("path not exists, creating", path)
+			err := os.MkdirAll(path, os.ModePerm)
+
+			if err != nil {
+				panic(err)
+			}
+		} else {
+			panic(err)
+		}
+	}
+
+	return path
+}
+
+func getApi(questionId int64, limit int, offset int) string {
+	api := Url
+	api = strings.Replace(api, "{QUESTION_ID}", strconv.FormatInt(questionId, 10), 1)
+	api = strings.Replace(api, "{LIMIT}", strconv.Itoa(limit), 1)
+	api = strings.Replace(api, "{OFFSET}", strconv.Itoa(offset), 1)
+	return api
+}
+
+func getAnswerCount(questionId int64) int {
+	response, err := http.Get(strings.Replace(ZhihuUrl, "{QUESTION_ID}", strconv.FormatInt(questionId, 10), 1))
 	if err != nil {
 		panic(err)
 	}
@@ -36,11 +93,18 @@ func getAnswerCount(questionId int) int {
 	if err != nil {
 		panic(err)
 	}
-	answerCountContent, _ := doc.Find(".App-main").Find("meta[itemProp=answerCount]").Eq(0).Attr("content")
+	answerCountContent, exist := doc.Find(".App-main").Find("meta[itemProp=answerCount]").Eq(0).Attr("content")
+	if !exist {
+		fmt.Println("未能找到总回答数，可能页面不存在")
+		return 0
+	}
+
 	answerCount, err := strconv.Atoi(answerCountContent)
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Println("the question has total:", answerCount, "answers")
 	return answerCount
 }
 
@@ -59,7 +123,7 @@ func downloadImageByApi(url string, rootDir string) {
 		doc.Find("figure img").Each(func(i int, selection *goquery.Selection) {
 			originImgUrl, exist := selection.Attr("data-original")
 			if !exist {
-				fmt.Println("不存在原图,可能是个表情包")
+				fmt.Println("不存在原图,可能是个表情包,跳过下载")
 				return
 			}
 
@@ -110,11 +174,14 @@ func doDownload(image *entity.Image, imgDir string) {
 	}
 	defer res.Body.Close()
 
+	// 创建文件
 	name := getFileName(image.Path)
 	out, err := os.Create(imgDir + name)
 	if err != nil {
 		panic(err)
 	}
+
+	// 下载
 	_, err = io.Copy(out, res.Body)
 	if err != nil {
 		image.Result <- false
