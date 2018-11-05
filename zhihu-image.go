@@ -4,8 +4,9 @@ import (
 	"github.com/urfave/cli"
 	"os"
 	"fmt"
-	"zhihuimage/service"
-	"zhihuimage/util"
+
+	"github.com/jinxZz/zhihuimage/service"
+	"github.com/jinxZz/zhihuimage/util"
 )
 
 func main() {

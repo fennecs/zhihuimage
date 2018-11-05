@@ -7,11 +7,12 @@ import (
 	"strconv"
 	"net/http"
 	"github.com/PuerkitoBio/goquery"
-	"zhihuimage/entity"
 	"io/ioutil"
 	"encoding/json"
 	"io"
 	"regexp"
+
+	"github.com/jinxZz/zhihuimage/entity"
 )
 
 const Url = "https://www.zhihu.com/api/v4/questions/{QUESTION_ID}/answers?include=content&limit={LIMIT}&offset={OFFSET}&sort_by=default"
