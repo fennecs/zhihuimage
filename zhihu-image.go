@@ -1,4 +1,4 @@
-package main
+package zhihuimage
 
 import (
 	"github.com/urfave/cli"
@@ -7,9 +7,6 @@ import (
 	"zhihuimage/service"
 	"zhihuimage/util"
 )
-
-const Url = "https://www.zhihu.com/api/v4/questions/{ANSWER_ID}/answers?include=content&limit={LIMIT}&offset={OFFSET}&sort_by=default"
-const RootDir = "/Users/htc/Downloads/zhihu/"
 
 func main() {
 	//实例化cli
@@ -24,7 +21,7 @@ func main() {
 		cli.StringFlag{Name: "dir, d", Usage: "Absolute path to save image.Make sure you have the writing authority."},
 		cli.Int64Flag{Name: "id, i", Usage: "Get question ID it from zhihu."},
 		cli.IntFlag{Name: "size, s", Usage: "Question count per page.Max 5.", Value: 5},
-		cli.IntFlag{Name: "limit, l", Usage: "Max question count." },
+		cli.IntFlag{Name: "limit, l", Usage: "Max question count."},
 	}
 	app.Action = func(c *cli.Context) error {
 		rootDir := util.Trim(c.String("dir"))
