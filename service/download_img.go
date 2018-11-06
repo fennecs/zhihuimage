@@ -6,12 +6,13 @@ import (
 	"os"
 	"strconv"
 	"net/http"
-	"github.com/PuerkitoBio/goquery"
 	"io/ioutil"
 	"encoding/json"
 	"io"
 	"regexp"
+	"path/filepath"
 
+	"github.com/PuerkitoBio/goquery"
 	"github.com/jinxZz/zhihuimage/entity"
 )
 
@@ -41,24 +42,28 @@ func GetWonderfulImages(questionId int64, rootDir string, size int, answerLimit 
 
 		fmt.Println("----------------------------------------------------------------------")
 
-		if offset >= answerLimit {
-			break
+		if offset/size+1 >= answerLimit {
+			fmt.Println("Hit page limit.System exit.")
+			os.Exit(0)
 		}
 	}
 }
 
 // 每页最多几条回答
 func sizeCheck(size int) int {
-	if size > SizeMax || size <= 0{
+	if size > SizeMax || size <= 0 {
 		return SizeMax
 	}
 	return size
 }
+
 // 检验文件夹路径 & 创建目录
 func dirCheck(path string) string {
-	if !strings.HasSuffix(path, "/") {
-		path += "/"
+	if !filepath.IsAbs(path) {
+		path, _ = filepath.Abs(path)
 	}
+
+	path = filepath.Clean(path)
 
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
@@ -73,7 +78,7 @@ func dirCheck(path string) string {
 		}
 	}
 
-	return path
+	return path + "/"
 }
 
 func getApi(questionId int64, limit int, offset int) string {
