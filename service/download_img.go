@@ -65,7 +65,7 @@ func dirCheck(path string, questionId int64) string {
 		path, _ = filepath.Abs(path)
 	}
 
-	path = filepath.Clean(path) + "/" + strconv.FormatInt(questionId,10)
+	path = filepath.Clean(path) + "/" + strconv.FormatInt(questionId, 10)
 
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
@@ -119,16 +119,16 @@ func getAnswerCount(questionId int64) int {
 func downloadImageByApi(url string, rootDir string) {
 	results := make([]*entity.Image, 0)
 	answers, err := getPagingAnswer(url)
-	if err!= nil {
+	if err != nil {
 		return
 	}
 
 	for _, answer := range answers.Data {
-		//fmt.Println(answer.Content)
 
 		doc, err := goquery.NewDocumentFromReader(strings.NewReader(answer.Content))
 		if err != nil {
-			panic(err)
+			fmt.Errorf("failed when read from answer.content. %s", err)
+			continue
 		}
 
 		doc.Find("figure img").Each(func(i int, selection *goquery.Selection) {
@@ -155,21 +155,21 @@ func downloadImageByApi(url string, rootDir string) {
 }
 
 func getPagingAnswer(url string) (*entity.PagingAnswer, error) {
-	body := getApiBodyWithRetries(url, 0, 5)
-	if body == nil {
-		return nil, errors.New("Http failed.")
+	body, err := getApiBodyWithRetries(url, 0, 5)
+	if err != nil {
+		return nil, err
 	}
 
 	//fmt.Println(string(body))
 	answers := new(entity.PagingAnswer)
-	err := json.Unmarshal(body, answers)
+	err = json.Unmarshal(body, answers)
 	if err != nil {
-		panic(err)
+		return nil, errors.New("parse json failed")
 	}
 	return answers, nil
 }
 
-func getApiBodyWithRetries(url string, retries int, maxRetries int) ([]byte) {
+func getApiBodyWithRetries(url string, retries int, maxRetries int) ([]byte, error) {
 	var body []byte
 
 	response, err := http.Get(url)
@@ -180,7 +180,7 @@ func getApiBodyWithRetries(url string, retries int, maxRetries int) ([]byte) {
 		// 超出重试次数
 		if retries++; retries > maxRetries {
 			fmt.Println(url, err, "[达到最大重试次数，放弃]")
-			return nil
+			return nil, errors.New("重试失败")
 		} else {
 			fmt.Println(url, err, "[挂起10s，准备第", retries, "次重试]")
 			time.Sleep(time.Duration(10) * time.Second)
@@ -188,10 +188,14 @@ func getApiBodyWithRetries(url string, retries int, maxRetries int) ([]byte) {
 			return getApiBodyWithRetries(url, retries, maxRetries)
 		}
 	} else {
-		body, _ = ioutil.ReadAll(response.Body)
+		body, err = ioutil.ReadAll(response.Body)
+		if err != nil {
+			fmt.Println(err)
+			return nil, errors.New("read body failed")
+		}
 		response.Body.Close()
 	}
-	return body
+	return body, nil
 }
 
 func waitForFinish(results []*entity.Image) {
@@ -204,8 +208,9 @@ func waitForFinish(results []*entity.Image) {
 func doDownload(image *entity.Image, imgDir string) {
 	res, err := http.Get(image.Path)
 	if err != nil {
-		fmt.Println(err)
-		res.Body.Close()
+		fmt.Errorf("failed when downloading image. %s", err)
+		image.Result <- false
+		return
 	}
 	defer res.Body.Close()
 
@@ -213,17 +218,18 @@ func doDownload(image *entity.Image, imgDir string) {
 	name := getFileName(image.Path)
 	out, err := os.Create(imgDir + name)
 	if err != nil {
-		panic(err)
+		fmt.Errorf("failed when creating file. %s", err)
+		image.Result <- false
+		return
 	}
 
 	// 下载
 	_, err = io.Copy(out, res.Body)
 	if err != nil {
-		image.Result <- false
 		fmt.Println(err)
+		image.Result <- false
+		return
 	}
-
-	//fmt.Println("[", name ,"]downloaded")
 
 	image.Result <- true
 }
