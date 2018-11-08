@@ -23,7 +23,7 @@ func main() {
 		cli.StringFlag{Name: "dir, d", Usage: "Director path to save image.Make sure you have the writing authority."},
 		cli.Int64Flag{Name: "id, i", Usage: "Get question ID it from zhihu."},
 		cli.IntFlag{Name: "size, s", Usage: "Question count per page.Max 5.", Value: 5},
-		cli.IntFlag{Name: "limit, l", Usage: "Max page count.", Value:math.MaxInt32},
+		cli.IntFlag{Name: "limit, l", Usage: "Max page limit.", Value:math.MaxInt32},
 	}
 	app.Action = func(c *cli.Context) error {
 		rootDir := util.Trim(c.String("dir"))
@@ -33,6 +33,7 @@ func main() {
 
 		if rootDir == "" || questionId == 0 {
 			fmt.Println("Must specify both rootDir and questionId.Use -h to get help.")
+			os.Exit(0)
 		}
 
 		service.GetWonderfulImages(questionId, rootDir, size, limit)

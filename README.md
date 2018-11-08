@@ -15,4 +15,4 @@ go get github.com/jinxZz/zhihuimage
 # unix 系统
 ./zhihuimage -d '/root/zhihu' -i 263952082
 ```
-采取分页下载，每页最多(size)为5条回答;最多下载无数页，可以通过"-l"限定页数，10条回答估计有100m图片(高赞回答)
+采取分页下载，每页最多(size)为5条回答;最多下载无数页，可以通过"-l"限定页数

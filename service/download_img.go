@@ -14,6 +14,8 @@ import (
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/jinxZz/zhihuimage/entity"
+	"time"
+	"github.com/pkg/errors"
 )
 
 const Url = "https://www.zhihu.com/api/v4/questions/{QUESTION_ID}/answers?include=content&limit={LIMIT}&offset={OFFSET}&sort_by=default"
@@ -21,15 +23,15 @@ const ZhihuUrl = "https://www.zhihu.com/question/{QUESTION_ID}"
 const SizeMax = 5
 
 func GetWonderfulImages(questionId int64, rootDir string, size int, answerLimit int) {
-
-	rootDir = dirCheck(rootDir)
-	size = sizeCheck(size)
-
 	totalCount := getAnswerCount(questionId)
 	if totalCount == 0 {
 		fmt.Println("Exit.")
-		return
+		os.Exit(0)
 	}
+
+	rootDir = dirCheck(rootDir, questionId)
+	size = sizeCheck(size)
+
 	for i := 0; i < totalCount; i += size {
 		// 分页参数
 		offset := i
@@ -58,16 +60,16 @@ func sizeCheck(size int) int {
 }
 
 // 检验文件夹路径 & 创建目录
-func dirCheck(path string) string {
+func dirCheck(path string, questionId int64) string {
 	if !filepath.IsAbs(path) {
 		path, _ = filepath.Abs(path)
 	}
 
-	path = filepath.Clean(path)
+	path = filepath.Clean(path) + "/" + strconv.FormatInt(questionId,10)
 
 	if _, err := os.Stat(path); err != nil {
 		if os.IsNotExist(err) {
-			fmt.Println("path not exists, creating", path)
+			fmt.Println("path not exists, creating ", path)
 			err := os.MkdirAll(path, os.ModePerm)
 
 			if err != nil {
@@ -116,7 +118,10 @@ func getAnswerCount(questionId int64) int {
 
 func downloadImageByApi(url string, rootDir string) {
 	results := make([]*entity.Image, 0)
-	answers := getPagingAnswer(url)
+	answers, err := getPagingAnswer(url)
+	if err!= nil {
+		return
+	}
 
 	for _, answer := range answers.Data {
 		//fmt.Println(answer.Content)
@@ -144,26 +149,49 @@ func downloadImageByApi(url string, rootDir string) {
 		})
 	}
 
-	fmt.Println("All task started, wating for finishment...")
+	fmt.Println("All task started, wating for finish...")
 
 	waitForFinish(results)
 }
 
-func getPagingAnswer(url string) entity.PagingAnswer {
+func getPagingAnswer(url string) (*entity.PagingAnswer, error) {
+	body := getApiBodyWithRetries(url, 0, 5)
+	if body == nil {
+		return nil, errors.New("Http failed.")
+	}
+
+	//fmt.Println(string(body))
+	answers := new(entity.PagingAnswer)
+	err := json.Unmarshal(body, answers)
+	if err != nil {
+		panic(err)
+	}
+	return answers, nil
+}
+
+func getApiBodyWithRetries(url string, retries int, maxRetries int) ([]byte) {
+	var body []byte
+
 	response, err := http.Get(url)
 	if err != nil {
-		panic(err)
-	}
-	defer response.Body.Close()
+		// 递归还是不用defer吧
+		response.Body.Close()
 
-	body, _ := ioutil.ReadAll(response.Body)
-	//fmt.Println(string(body))
-	var answers entity.PagingAnswer
-	err = json.Unmarshal(body, &answers)
-	if err != nil {
-		panic(err)
+		// 超出重试次数
+		if retries++; retries > maxRetries {
+			fmt.Println(url, err, "[达到最大重试次数，放弃]")
+			return nil
+		} else {
+			fmt.Println(url, err, "[挂起10s，准备第", retries, "次重试]")
+			time.Sleep(time.Duration(10) * time.Second)
+			// 新一轮的尝试
+			return getApiBodyWithRetries(url, retries, maxRetries)
+		}
+	} else {
+		body, _ = ioutil.ReadAll(response.Body)
+		response.Body.Close()
 	}
-	return answers
+	return body
 }
 
 func waitForFinish(results []*entity.Image) {
@@ -176,7 +204,8 @@ func waitForFinish(results []*entity.Image) {
 func doDownload(image *entity.Image, imgDir string) {
 	res, err := http.Get(image.Path)
 	if err != nil {
-		panic(err)
+		fmt.Println(err)
+		res.Body.Close()
 	}
 	defer res.Body.Close()
 
@@ -191,7 +220,7 @@ func doDownload(image *entity.Image, imgDir string) {
 	_, err = io.Copy(out, res.Body)
 	if err != nil {
 		image.Result <- false
-		panic(err)
+		fmt.Println(err)
 	}
 
 	//fmt.Println("[", name ,"]downloaded")
