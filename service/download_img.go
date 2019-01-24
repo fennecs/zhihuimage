@@ -11,10 +11,10 @@ import (
 	"io"
 	"regexp"
 	"path/filepath"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/jinxZz/zhihuimage/entity"
-	"time"
+	"github.com/mockingcat/zhihuimage/entity"
 	"github.com/pkg/errors"
 )
 

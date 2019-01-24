@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/jinxZz/zhihuimage/service"
-	"github.com/jinxZz/zhihuimage/util"
+	"github.com/mockingcat/zhihuimage/service"
+	"github.com/mockingcat/zhihuimage/util"
 )
 
 func main() {
