@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/mockingcat/zhihuimage/entity"
+	"github.com/fennecs/zhihuimage/entity"
 	"github.com/pkg/errors"
 )
 

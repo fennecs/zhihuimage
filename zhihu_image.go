@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/mockingcat/zhihuimage/service"
-	"github.com/mockingcat/zhihuimage/util"
+	"github.com/fennecs/zhihuimage/service"
+	"github.com/fennecs/zhihuimage/util"
 )
 
 func main() {
@@ -39,5 +39,6 @@ func main() {
 		service.GetWonderfulImages(questionId, rootDir, size, limit)
 		return nil
 	}
+
 	app.Run(os.Args)
 }

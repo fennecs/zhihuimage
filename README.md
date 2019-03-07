@@ -4,7 +4,7 @@
 
 安装go,配置好环境后执行
 ```bash
-go get github.com/jinxZz/zhihuimage
+go get github.com/fennecs/zhihuimage
 ```
 切到$GOPATH/bin/, 执行
 ```bash
